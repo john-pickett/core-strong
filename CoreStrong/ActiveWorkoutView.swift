@@ -16,9 +16,9 @@ struct ActiveWorkoutView: View {
     @StateObject private var timerVM = RestTimerViewModel()
     @AppStorage("defaultRestDuration") private var defaultRestDuration: Int = 90
 
-    @State private var showingFinishSheet         = false
-    @State private var showingZeroSetsWarning     = false
-    @State private var showingDiscardConfirmation = false
+    @State private var showingFinishSheet           = false
+    @State private var showingZeroSetsWarning       = false
+    @State private var showingDiscardConfirmation   = false
 
     var body: some View {
         NavigationStack {
@@ -116,6 +116,7 @@ struct ActiveWorkoutView: View {
         .environmentObject(timerVM)
         .onAppear {
             RestTimerViewModel.requestPermissionIfNeeded()
+            Task { await HealthKitService.requestAuthorizationIfNeeded() }
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
@@ -143,8 +144,19 @@ struct ActiveWorkoutView: View {
         }
 
         session.endedAt = Date()
-        HealthKitService.logWorkout(session: session)
-        session.isActive = false   // triggers fullScreenCover dismiss
+
+        let snapSession = session   // capture reference before possible dismiss
+
+        Task {
+            do {
+                let id = try await HealthKitService.logWorkout(session: snapSession)
+                snapSession.healthKitWorkoutID = id
+                snapSession.isActive = false   // triggers fullScreenCover dismiss
+            } catch {
+                // Unavailable (iPad/Simulator), denied, or unexpected write failure — save locally and dismiss
+                snapSession.isActive = false
+            }
+        }
     }
 }
 

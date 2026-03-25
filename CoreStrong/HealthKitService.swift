@@ -5,17 +5,82 @@
 //  Created by John Pickett on 3/9/26.
 //
 
-import Foundation
+import HealthKit
 
-/// Stub service for HealthKit integration.
-/// Full implementation (HKHealthStore authorization + HKWorkout write) coming in a future release.
+// MARK: - Error types
+
+enum HealthKitServiceError: Error {
+    /// The device does not support HealthKit (iPad, Simulator).
+    case unavailable
+}
+
+// MARK: - HealthKitService
+
 struct HealthKitService {
 
-    /// Records a completed workout session to HealthKit.
-    /// - Parameter session: The finalized `WorkoutSession` to log.
-    static func logWorkout(session: WorkoutSession) {
-        // TODO: Request HKHealthStore authorization and write an HKWorkout
-        let seconds = session.duration?.rounded() ?? 0
-        print("[HealthKit] stub — '\(session.routineName)' duration \(Int(seconds))s")
+    private static let store = HKHealthStore()
+
+    // MARK: - Authorization
+
+    /// Requests write authorization for workout and active energy types.
+    /// Safe to call repeatedly — HealthKit only shows the system sheet once.
+    static func requestAuthorizationIfNeeded() async {
+        guard HKHealthStore.isHealthDataAvailable() else { return }
+
+        let typesToShare: Set<HKSampleType> = [
+            HKWorkoutType.workoutType(),
+            HKQuantityType(.activeEnergyBurned)
+        ]
+
+        // Only prompt when the user hasn't made a decision yet.
+        guard store.authorizationStatus(for: HKWorkoutType.workoutType()) == .notDetermined else { return }
+
+        // requestAuthorization never throws; errors are surfaced at write time.
+        try? await store.requestAuthorization(toShare: typesToShare, read: [])
+    }
+
+    // MARK: - Write workout
+
+    /// Writes a completed workout session to HealthKit and returns the HKWorkout UUID.
+    /// - Throws: `HealthKitServiceError.unavailable` if HealthKit is not supported on this device.
+    /// - Throws: Any `HKError` if the underlying write operation fails (e.g. permission denied).
+    static func logWorkout(session: WorkoutSession) async throws -> UUID {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            throw HealthKitServiceError.unavailable
+        }
+
+        let start = session.startedAt
+        let end   = session.endedAt ?? Date()
+
+        let config = HKWorkoutConfiguration()
+        config.activityType = .traditionalStrengthTraining
+
+        let builder = HKWorkoutBuilder(
+            healthStore: store,
+            configuration: config,
+            device: .local()
+        )
+
+        try await builder.beginCollection(at: start)
+
+        // MET-based calorie estimate: MET × weight_kg × duration_hours
+        // MET 5.0 for moderate strength training; 70 kg default body weight.
+        // TODO: Personalize by querying HKQuantityType(.bodyMass) from HealthKit.
+        let durationHours = end.timeIntervalSince(start) / 3600
+        let kcal          = 5.0 * 70.0 * durationHours
+
+        let energySample = HKQuantitySample(
+            type:     HKQuantityType(.activeEnergyBurned),
+            quantity: HKQuantity(unit: .kilocalorie(), doubleValue: kcal),
+            start:    start,
+            end:      end
+        )
+
+        // addSamples must be called before endCollection
+        try await builder.addSamples([energySample])
+        try await builder.endCollection(at: end)
+
+        let workout = try await builder.finishWorkout()
+        return workout.uuid
     }
 }

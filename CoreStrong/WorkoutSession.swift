@@ -15,6 +15,8 @@ final class WorkoutSession {
     var isActive: Bool
     var routineName: String
     var notes: String = ""
+    /// UUID of the corresponding HKWorkout in HealthKit. Nil if not yet written or if HealthKit is unavailable.
+    var healthKitWorkoutID: UUID? = nil
 
     @Relationship(deleteRule: .cascade, inverse: \SessionExercise.session)
     var exercises: [SessionExercise] = []
