@@ -10,46 +10,39 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+
+    // Any session with isActive == true — survives app restarts automatically
+    @Query(filter: #Predicate<WorkoutSession> { $0.isActive })
+    private var activeSessions: [WorkoutSession]
+
+    private var activeSession: WorkoutSession? { activeSessions.first }
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
-                }
-                .onDelete(perform: deleteItems)
+        TabView {
+            Tab("Routines", systemImage: "list.bullet.clipboard") {
+                RoutineListView()
             }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
+            Tab("Exercises", systemImage: "dumbbell") {
+                ExerciseLibraryView()
             }
-        } detail: {
-            Text("Select an item")
+            Tab("History", systemImage: "clock.arrow.counterclockwise") {
+                WorkoutHistoryView()
+            }
         }
-    }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
+        .onAppear {
+            ExerciseSeeder.seedIfNeeded(context: modelContext)
         }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+        // Presented as a full-screen cover so the tab bar is hidden during a workout.
+        // Dismisses automatically when activeSession becomes nil (finish or discard).
+        .fullScreenCover(
+            isPresented: Binding(
+                get: { activeSession != nil },
+                set: { _ in }
+            )
+        ) {
+            if let session = activeSession {
+                ActiveWorkoutView(session: session)
+                    .interactiveDismissDisabled()
             }
         }
     }
@@ -57,5 +50,9 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+        .modelContainer(
+            for: [Exercise.self, Routine.self, RoutineExercise.self,
+                  WorkoutSession.self, SessionExercise.self, SetLog.self],
+            inMemory: true
+        )
 }

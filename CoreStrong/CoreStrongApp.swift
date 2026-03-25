@@ -12,7 +12,12 @@ import SwiftData
 struct CoreStrongApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            Exercise.self,
+            Routine.self,
+            RoutineExercise.self,
+            WorkoutSession.self,
+            SessionExercise.self,
+            SetLog.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
