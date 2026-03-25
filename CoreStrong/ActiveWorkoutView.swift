@@ -97,6 +97,7 @@ struct ActiveWorkoutView: View {
                 titleVisibility: .visible
             ) {
                 Button("Discard", role: .destructive) {
+                    LiveActivityService.shared.discard()
                     timerVM.skip()
                     modelContext.delete(session)
                 }
@@ -146,6 +147,8 @@ struct ActiveWorkoutView: View {
         session.endedAt = Date()
 
         let snapSession = session   // capture reference before possible dismiss
+
+        LiveActivityService.shared.end(session: snapSession)
 
         Task {
             do {
@@ -246,6 +249,13 @@ private struct SessionExerciseSection: View {
         set.reps        = Int(repsText[id] ?? "")      ?? set.reps
         set.weight      = Double(weightText[id] ?? "") ?? set.weight
         set.completedAt = Date()
+
+        if let session = sessionExercise.session {
+            LiveActivityService.shared.update(
+                session: session,
+                currentExerciseName: sessionExercise.exerciseName
+            )
+        }
 
         let duration = sessionExercise.restDuration > 0
             ? sessionExercise.restDuration

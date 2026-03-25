@@ -80,7 +80,9 @@ struct HealthKitService {
         try await builder.addSamples([energySample])
         try await builder.endCollection(at: end)
 
-        let workout = try await builder.finishWorkout()
+        guard let workout = try await builder.finishWorkout() else {
+            throw HealthKitServiceError.unavailable
+        }
         return workout.uuid
     }
 }

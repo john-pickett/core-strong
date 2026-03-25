@@ -165,6 +165,8 @@ struct RoutineListView: View {
                 modelContext.insert(setLog)
             }
         }
+
+        LiveActivityService.shared.start(session: session)
     }
 
     // MARK: - Helpers
