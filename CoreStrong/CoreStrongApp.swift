@@ -18,6 +18,7 @@ struct CoreStrongApp: App {
             WorkoutSession.self,
             SessionExercise.self,
             SetLog.self,
+            CardioSession.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 

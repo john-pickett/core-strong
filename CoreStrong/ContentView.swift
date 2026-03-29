@@ -28,6 +28,9 @@ struct ContentView: View {
             Tab("Exercises", systemImage: "dumbbell") {
                 ExerciseLibraryView()
             }
+            Tab("Cardio", systemImage: "figure.run") {
+                CardioListView()
+            }
             Tab("History", systemImage: "clock.arrow.counterclockwise") {
                 WorkoutHistoryView()
             }
@@ -70,7 +73,8 @@ struct ContentView: View {
     ContentView()
         .modelContainer(
             for: [Exercise.self, Routine.self, RoutineExercise.self,
-                  WorkoutSession.self, SessionExercise.self, SetLog.self],
+                  WorkoutSession.self, SessionExercise.self, SetLog.self,
+                  CardioSession.self],
             inMemory: true
         )
 }
