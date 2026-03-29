@@ -10,6 +10,9 @@ struct CardioLogView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
+    /// Provide an existing session to enter edit mode (used for reviewing imported sessions).
+    var existingSession: CardioSession? = nil
+
     @State private var date = Date()
     @State private var activityType: CardioActivityType = .running
     @State private var isOutdoor = true
@@ -26,6 +29,8 @@ struct CardioLogView: View {
     private enum Field: Hashable {
         case route, hours, minutes, seconds, distance, notes
     }
+
+    private var isEditing: Bool { existingSession != nil }
 
     private var totalDurationSeconds: Int {
         durationHours * 3600 + durationMinutes * 60 + durationSecs
@@ -96,7 +101,7 @@ struct CardioLogView: View {
                         .focused($focusedField, equals: .notes)
                 }
             }
-            .navigationTitle("Log Cardio Session")
+            .navigationTitle(isEditing ? "Edit Session" : "Log Cardio Session")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -109,6 +114,20 @@ struct CardioLogView: View {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
                     Button("Done") { focusedField = nil }
+                }
+            }
+            .onAppear {
+                if let s = existingSession {
+                    date = s.date
+                    activityType = s.activityType
+                    isOutdoor = s.isOutdoor
+                    routeDescription = s.routeDescription
+                    focus = s.focus
+                    durationHours = s.durationSeconds / 3600
+                    durationMinutes = (s.durationSeconds % 3600) / 60
+                    durationSecs = s.durationSeconds % 60
+                    distanceText = s.distanceMiles > 0 ? String(format: "%.2f", s.distanceMiles) : ""
+                    notes = s.notes
                 }
             }
         }
@@ -129,17 +148,44 @@ struct CardioLogView: View {
     }
 
     private func save() {
-        let session = CardioSession(activityType: activityType)
-        session.date = date
-        session.isOutdoor = isOutdoor
-        session.routeDescription = isOutdoor
+        let trimmedRoute = isOutdoor
             ? routeDescription.trimmingCharacters(in: .whitespacesAndNewlines)
             : ""
-        session.focus = focus
-        session.durationSeconds = totalDurationSeconds
-        session.distanceMiles = Double(distanceText) ?? 0.0
-        session.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
-        modelContext.insert(session)
+        let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        let distance = Double(distanceText) ?? 0.0
+
+        if let session = existingSession {
+            // Edit mode: update existing session and mark as reviewed.
+            session.date = date
+            session.activityType = activityType
+            session.isOutdoor = isOutdoor
+            session.routeDescription = trimmedRoute
+            session.focus = focus
+            session.durationSeconds = totalDurationSeconds
+            session.distanceMiles = distance
+            session.notes = trimmedNotes
+            session.isReviewed = true
+        } else {
+            // Create mode: insert new session.
+            let session = CardioSession(activityType: activityType)
+            session.date = date
+            session.isOutdoor = isOutdoor
+            session.routeDescription = trimmedRoute
+            session.focus = focus
+            session.durationSeconds = totalDurationSeconds
+            session.distanceMiles = distance
+            session.notes = trimmedNotes
+            session.isReviewed = true
+            modelContext.insert(session)
+
+            // Write to Apple Health asynchronously; store the returned UUID on the session.
+            Task {
+                if let id = try? await CardioHealthKitService.logWorkout(session: session) {
+                    session.healthKitWorkoutID = id
+                }
+            }
+        }
+
         dismiss()
     }
 }

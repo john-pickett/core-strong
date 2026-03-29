@@ -22,21 +22,31 @@ struct HealthKitService {
 
     // MARK: - Authorization
 
-    /// Requests write authorization for workout and active energy types.
-    /// Safe to call repeatedly — HealthKit only shows the system sheet once.
+    /// Requests authorization for all workout types the app reads and writes.
+    /// Safe to call repeatedly — HealthKit only shows the system sheet for undetermined types.
     static func requestAuthorizationIfNeeded() async {
         guard HKHealthStore.isHealthDataAvailable() else { return }
 
         let typesToShare: Set<HKSampleType> = [
             HKWorkoutType.workoutType(),
-            HKQuantityType(.activeEnergyBurned)
+            HKQuantityType(.activeEnergyBurned),
+            HKQuantityType(.distanceWalkingRunning),
+            HKQuantityType(.distanceCycling),
+            HKQuantityType(.distanceSwimming),
         ]
 
-        // Only prompt when the user hasn't made a decision yet.
-        guard store.authorizationStatus(for: HKWorkoutType.workoutType()) == .notDetermined else { return }
+        let typesToRead: Set<HKObjectType> = [
+            HKWorkoutType.workoutType(),
+            HKQuantityType(.heartRate),
+            HKQuantityType(.activeEnergyBurned),
+            HKQuantityType(.distanceWalkingRunning),
+            HKQuantityType(.distanceCycling),
+            HKQuantityType(.distanceSwimming),
+            HKQuantityType(.elevationAscended),
+        ]
 
-        // requestAuthorization never throws; errors are surfaced at write time.
-        try? await store.requestAuthorization(toShare: typesToShare, read: [])
+        // requestAuthorization never throws; errors are surfaced at read/write time.
+        try? await store.requestAuthorization(toShare: typesToShare, read: typesToRead)
     }
 
     // MARK: - Write workout

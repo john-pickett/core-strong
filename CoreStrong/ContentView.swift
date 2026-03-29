@@ -17,8 +17,12 @@ struct ContentView: View {
 
     private var activeSession: WorkoutSession? { activeSessions.first }
 
+    @Query(filter: #Predicate<CardioSession> { !$0.isReviewed })
+    private var unreviewedCardioSessions: [CardioSession]
+
     @State private var showingResumePrompt = false
     @State private var launchResumeHandled = false
+    @State private var cardioImportDone = false
 
     var body: some View {
         TabView {
@@ -31,12 +35,17 @@ struct ContentView: View {
             Tab("Cardio", systemImage: "figure.run") {
                 CardioListView()
             }
+            .badge(unreviewedCardioSessions.count)
             Tab("History", systemImage: "clock.arrow.counterclockwise") {
                 WorkoutHistoryView()
             }
         }
         .onAppear {
             ExerciseSeeder.seedIfNeeded(context: modelContext)
+            if !cardioImportDone {
+                cardioImportDone = true
+                Task { await CardioHealthKitService.importWorkouts(context: modelContext) }
+            }
             if activeSession != nil && !launchResumeHandled {
                 launchResumeHandled = true
                 showingResumePrompt = true

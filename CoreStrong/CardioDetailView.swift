@@ -8,8 +8,33 @@ import SwiftUI
 struct CardioDetailView: View {
     let session: CardioSession
 
+    @State private var showingEdit = false
+
     var body: some View {
         List {
+            // Banner prompting review of imported sessions
+            if !session.isReviewed {
+                Section {
+                    HStack(spacing: 12) {
+                        Image(systemName: "square.and.arrow.down.on.square")
+                            .font(.title2)
+                            .foregroundStyle(.blue)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Imported from Apple Health")
+                                .font(.subheadline.bold())
+                            Text("Add focus and notes to complete this session.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button("Review") { showingEdit = true }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+
             Section {
                 LabeledContent("Date") {
                     Text(session.date.formatted(date: .long, time: .shortened))
@@ -47,6 +72,20 @@ struct CardioDetailView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                if session.averageHeartRate > 0 {
+                    LabeledContent("Avg. Heart Rate") {
+                        Label(String(format: "%.0f BPM", session.averageHeartRate),
+                              systemImage: "heart.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                if session.elevationGain > 0 {
+                    LabeledContent("Elevation Gain") {
+                        Label(String(format: "%.0f ft", session.elevationGain),
+                              systemImage: "arrow.up.right")
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
 
             if session.isOutdoor && !session.routeDescription.isEmpty {
@@ -63,6 +102,14 @@ struct CardioDetailView: View {
         }
         .navigationTitle(session.activityType.displayName)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button("Edit") { showingEdit = true }
+            }
+        }
+        .sheet(isPresented: $showingEdit) {
+            CardioLogView(existingSession: session)
+        }
     }
 
     private var formattedDuration: String {

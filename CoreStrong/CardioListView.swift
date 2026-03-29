@@ -84,6 +84,12 @@ private struct CardioHistoryRow: View {
                 Text(session.isOutdoor ? "Outdoor" : "Indoor")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                Spacer()
+                if !session.isReviewed {
+                    Image(systemName: "circle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.blue)
+                }
             }
 
             Text(session.date.formatted(date: .abbreviated, time: .shortened))

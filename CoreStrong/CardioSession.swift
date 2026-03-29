@@ -71,6 +71,16 @@ final class CardioSession {
     var distanceMiles: Double
     var notes: String
 
+    // HealthKit integration
+    /// UUID of the corresponding HKWorkout. Nil if not yet written or HealthKit is unavailable.
+    var healthKitWorkoutID: UUID? = nil
+    /// False for sessions imported from Apple Health that need user review (focus, notes, route).
+    var isReviewed: Bool = true
+    /// Average heart rate in BPM. 0 if not available.
+    var averageHeartRate: Double = 0.0
+    /// Total elevation gain in feet. 0 if not available.
+    var elevationGain: Double = 0.0
+
     init(activityType: CardioActivityType = .running) {
         self.date = Date()
         self.activityType = activityType
