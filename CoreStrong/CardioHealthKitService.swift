@@ -86,7 +86,11 @@ struct CardioHealthKitService {
 
             session.distanceMiles = distanceMiles(from: workout, activityType: activityType)
             session.elevationGain = elevationFeet(from: workout)
-            session.averageHeartRate = await fetchAverageHeartRate(for: workout)
+
+            // Average and max heart rate computed in a single query pass.
+            let hrStats = await fetchHeartRateStats(for: workout)
+            session.averageHeartRate = hrStats.average
+            session.maxHeartRate = hrStats.max
 
             context.insert(session)
         }
@@ -188,7 +192,7 @@ struct CardioHealthKitService {
         return quantity.doubleValue(for: .foot())
     }
 
-    private static func fetchAverageHeartRate(for workout: HKWorkout) async -> Double {
+    private static func fetchHeartRateStats(for workout: HKWorkout) async -> (average: Double, max: Double) {
         let hrType = HKQuantityType(.heartRate)
         let predicate = HKQuery.predicateForSamples(
             withStart: workout.startDate,
@@ -202,11 +206,13 @@ struct CardioHealthKitService {
         )
 
         guard let samples = try? await descriptor.result(for: store), !samples.isEmpty else {
-            return 0.0
+            return (0.0, 0.0)
         }
 
         let beatsPerMin = HKUnit(from: "count/min")
-        let total = samples.reduce(0.0) { $0 + $1.quantity.doubleValue(for: beatsPerMin) }
-        return total / Double(samples.count)
+        let values = samples.map { $0.quantity.doubleValue(for: beatsPerMin) }
+        let average = values.reduce(0.0, +) / Double(values.count)
+        let max = values.max() ?? 0.0
+        return (average, max)
     }
 }

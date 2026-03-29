@@ -78,6 +78,8 @@ final class CardioSession {
     var isReviewed: Bool = true
     /// Average heart rate in BPM. 0 if not available.
     var averageHeartRate: Double = 0.0
+    /// Peak heart rate in BPM. 0 if not available.
+    var maxHeartRate: Double = 0.0
     /// Total elevation gain in feet. 0 if not available.
     var elevationGain: Double = 0.0
 

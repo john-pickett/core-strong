@@ -13,6 +13,7 @@ struct CardioListView: View {
     private var sessions: [CardioSession]
 
     @State private var showingLog = false
+    @State private var showingProgress = false
 
     var body: some View {
         NavigationStack {
@@ -32,6 +33,13 @@ struct CardioListView: View {
             }
             .navigationTitle("Cardio")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showingProgress = true
+                    } label: {
+                        Image(systemName: "chart.xyaxis.line")
+                    }
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         showingLog = true
@@ -45,6 +53,9 @@ struct CardioListView: View {
             }
             .navigationDestination(for: CardioSession.self) { session in
                 CardioDetailView(session: session)
+            }
+            .navigationDestination(isPresented: $showingProgress) {
+                CardioProgressView()
             }
             .overlay {
                 if sessions.isEmpty {

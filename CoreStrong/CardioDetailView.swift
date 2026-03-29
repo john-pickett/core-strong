@@ -79,6 +79,13 @@ struct CardioDetailView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                if session.maxHeartRate > 0 {
+                    LabeledContent("Max Heart Rate") {
+                        Label(String(format: "%.0f BPM", session.maxHeartRate),
+                              systemImage: "heart.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 if session.elevationGain > 0 {
                     LabeledContent("Elevation Gain") {
                         Label(String(format: "%.0f ft", session.elevationGain),
